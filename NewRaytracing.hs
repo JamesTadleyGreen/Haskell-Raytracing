@@ -1,3 +1,5 @@
+import Data.Maybe (mapMaybe)
+
 class NumVector v where
   (>+) :: Num a => v a -> v a -> v a
   (>-) :: Num a => v a -> v a -> v a
@@ -251,12 +253,10 @@ overall_lighting depth hit =
 -- or transmissions)
 raytrace :: Integer -> Ray Float -> Vector Float -- uses global 'shapes'
 raytrace depth ray =
-  let hits = foldr (minTime . intersect ray) shapes
-      minTime _ False = False
-      minTime Nothing _ = True
-   in if hits == Nothing
+  let hits = mapMaybe (intersect ray) shapes
+   in if null hits
         then backgroundColor
-        else overall_lighting depth (closest hits)
+        else overall_lighting depth (minimum hits)
 
 -- Testing: We define a function 'test' which renders a fixed view and writes
 -- out the result as c:/test.ppm
