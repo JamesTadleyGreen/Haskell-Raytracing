@@ -1,4 +1,6 @@
+import Data.List (minimumBy)
 import Data.Maybe (mapMaybe)
+import Data.Ord (comparing)
 
 class NumVector v where
   (>+) :: Num a => v a -> v a -> v a
@@ -144,11 +146,15 @@ lights =
 
 -- What is the ambient lighting in the scene
 ambient_light :: Vector Float
-ambient_light = Vec [0.1, 0.1, 0.1]
+ambient_light = Vec [1.1, 1.1, 1.1]
 
 -- What Shapes are in our scene?
 shapes :: [Shape Float]
-shapes = [Plane (normalize (Vec [1, 0, 0])) 0 shinyred]
+shapes =
+  [ Plane (normalize (Vec [0, -1, 0])) 50 shinyred,
+    Sphere (Vec [50, 10, 100]) 40 semishinygreen,
+    Sphere (Vec [-80, 0, 80]) 50 checked_matt
+  ]
 
 -- Is the light at 'lightpos' visible from point?
 -- TODO We can halt this function early if we hit a False
@@ -160,6 +166,7 @@ point_is_lit point lightpos =
       hits = map (intersect ray) shapes
       minTime _ False = False
       minTime Nothing _ = True
+      minTime _ _ = True
    in foldr minTime True hits
 
 -- Helper to calculate the diffuse light at the surface normal, given
@@ -218,13 +225,13 @@ type View = (Point Float, Float, Point Float, Vector Float)
 
 pixel_grid :: View -> Float -> Float -> [Point Float]
 pixel_grid (camerapos, viewdist, lookingat, viewup) width height =
-  let grid = [(x, y, 0) | y <- [0 .. width - 1], x <- [0 .. height - 1]]
-      centering_offset = (-width / 2.0, -height / 2.0, 0)
-      pixel_offsets = map (>+ centering_offset) grid
+  let grid = [Vec [x, y, 0] | y <- [0 .. width - 1], x <- [0 .. height - 1]]
+      centering_offset = Vec [-width / 2.0, -height / 2.0, 0]
+      pixel_offsets = map ((>+) centering_offset) grid
       viewdir = normalize (lookingat >- camerapos)
       screen_center = camerapos >+ (viewdist >* viewdir)
       viewright = viewdir `cross` viewup
-      transform (x, y, _) = screen_center >+ (x >* viewright) >+ (y >* (neg viewup))
+      transform (Vec [x, y, _]) = screen_center >+ (x >* viewright) >+ (y >* neg viewup)
    in map transform pixel_offsets
 
 -- Parallel projection function which creates rays parallel to the viewing screen
@@ -256,12 +263,12 @@ raytrace depth ray =
   let hits = mapMaybe (intersect ray) shapes
    in if null hits
         then backgroundColor
-        else overall_lighting depth (minimum hits)
+        else overall_lighting depth (snd (minimumBy (comparing fst) hits))
 
 -- Testing: We define a function 'test' which renders a fixed view and writes
 -- out the result as c:/test.ppm
 -- This writes out a pgm of our trivial rendering, given the screen width and height
-render_to_pgm :: Float -> Float -> String
+-- render_to_pgm :: Float -> Float -> String
 render_to_pgm width height =
   let view = (Vec [0, 0, -100], 100, Vec [0, 0, 100], Vec [0, -1, 0])
       projection = perspective_projection view
@@ -269,4 +276,6 @@ render_to_pgm width height =
       color_collection = map (raytrace 0) ray_collection
    in make_pgm (round width) (round height) color_collection
 
-main = do writeFile "test.ppm" (render_to_pgm 500 500)
+main = writeFile "test.ppm" (render_to_pgm 500 500)
+
+-- main = print (filter ((/=) (Vec [1, 1, 1])) (render_to_pgm 500 500)) -- writeFile "test.ppm" (render_to_pgm 500 500)
