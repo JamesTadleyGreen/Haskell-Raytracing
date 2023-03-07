@@ -146,7 +146,7 @@ lights =
 
 -- What is the ambient lighting in the scene
 ambient_light :: Vector Float
-ambient_light = Vec [1.1, 1.1, 1.1]
+ambient_light = Vec [0.1, 0.1, 0.1]
 
 -- What Shapes are in our scene?
 shapes :: [Shape Float]
